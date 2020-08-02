@@ -27,12 +27,12 @@ WORD_VECT_COLS = list(WORD_VECT_FPATHS.keys())
 def model_fn(model_dir):
     model = pickle.load(open(os.path.join(model_dir, 'model.pkl'), 'rb'))
     return model
-    
-    
+
+
 class TextPriorTransformer():
     def __init__(
-        self, 
-        cache_dir=None, 
+        self,
+        cache_dir=None,
         update_cache=False,
         domain_freq_thresh=0.0015,
         cats_drop_post_canon_fit=['blog', 'other', 'general', 'tips']
@@ -47,18 +47,21 @@ class TextPriorTransformer():
         df = pd.DataFrame(X)
         text = df['text']
         prior = df['prior']
-        category = y
-        
+        category = y.apply(sluglike)
+
         print('before fit canonical map')
         # fit canonical_map
         self.fit_canonical_map(text, category, groups)
-        
+
+        print('before prior category clean')
+        # clean category names in prior
+        prior_clean = [sluglike(cat), v for cat, v in prior]
         print('before canonicalize prior')
         # get canonical prior plus norm
-        prior_canonical = self.canonicalize_prior(prior)
+        prior_canonical = self.canonicalize_prior(prior_clean)
         print('before normalize prior')
         prior_canonical_norm = self.normalize_prior(prior_canonical)
-        
+
         print('before text clean')
         # clean text
         text_clean = text.apply(simple_clean)
@@ -78,9 +81,9 @@ class TextPriorTransformer():
         print('num_tokens', num_tokens.shape)
         X = scipy.sparse.hstack(
             [
-                tfidf_vect, 
-                prior_canonical, 
-                prior_canonical_norm, 
+                tfidf_vect,
+                prior_canonical,
+                prior_canonical_norm,
                 num_tokens
             ]
         )
@@ -88,7 +91,7 @@ class TextPriorTransformer():
         # scale
         self.scaler = MaxAbsScaler()
         self.scaler.fit(X)
-    
+
     def fit_canonical_map(self, text, category, groups):
         # get category domain counts
         groups_df = pd.DataFrame({'category': category, 'domain': groups})
@@ -111,16 +114,16 @@ class TextPriorTransformer():
 
         # get map from category to canonical category
         self.canonical_map_ = get_canonical_map(
-            scores_df, category_domain_counts, 
+            scores_df, category_domain_counts,
             domain_freq_thresh=self.domain_freq_thresh
         )
-        
+
         # set consistent order of categories for prior vectors
         self.category_order = np.unique(list(self.canonical_map_.values())).tolist()
-        
+
         # set reverse canonical map for fast lookups of equivalent_categories
         self.set_reverse_canonical_map(category_domain_counts)
-        
+
     def set_reverse_canonical_map(self, category_domain_counts):
         # set reverse canonical map for fast lookups of equivalent_categories
         reverse_canonical_map = defaultdict(list)
@@ -135,20 +138,20 @@ class TextPriorTransformer():
                 return 0
         for canon_cat, equivalent_cats in reverse_canonical_map.items():
             ordered_cats = sorted(
-                equivalent_cats, 
-                key=count_lookup, 
+                equivalent_cats,
+                key=count_lookup,
                 reverse=True
             )
-            # exclude canon_cat if 
+            # exclude canon_cat if
             try:
                 ordered_cats.remove(canon_cat)
             except:
                 pass
             reverse_canonical_map_ordered[canon_cat] = ordered_cats
         self.reverse_canonical_map_ = reverse_canonical_map_ordered
-        
-        
-        
+
+
+
     def canonicalize_prior(self, prior):
         canonical_prior_xcoords = []
         canonical_prior_ycoords = []
@@ -168,28 +171,29 @@ class TextPriorTransformer():
         # sparse csr from coords
         val_coords_tup = (canonical_prior_values, (canonical_prior_xcoords, canonical_prior_ycoords))
         canonical_prior = scipy.sparse.csr_matrix(
-            val_coords_tup, 
+            val_coords_tup,
             shape=(len(prior), len(self.category_order))
         )
         return canonical_prior
-    
+
     def normalize_prior(self, prior):
         # divide by sum
         prior_norm = prior / prior.sum(axis=1)
         # fill na with 0
         prior_norm = np.nan_to_num(prior_norm, nan=0)
         return prior_norm
-        
+
     def transform(self, X):
         # split text and prior from X
         df = pd.DataFrame(X)
         text = df['text']
         prior = df['prior']
-        
+
         # get canonical prior plus norm
-        prior_canonical = self.canonicalize_prior(prior)
+        prior_clean = [sluglike(cat), v for cat, v in prior]
+        prior_canonical = self.canonicalize_prior(prior_clean)
         prior_canonical_norm = self.normalize_prior(prior_canonical)
-        
+
         # clean text
         text_clean = text.apply(simple_clean)
         # count tokens
@@ -199,24 +203,24 @@ class TextPriorTransformer():
         # stack
         X = scipy.sparse.hstack(
             [
-                tfidf_vect, 
-                prior_canonical, 
-                prior_canonical_norm, 
+                tfidf_vect,
+                prior_canonical,
+                prior_canonical_norm,
                 num_tokens
             ]
         )
         # scale
         X = self.scaler.transform(X)
-        
+
         return X
-    
-    
+
+
 class BlogCategoryModel():
     def __init__(
         self,
-        cache_dir=None, 
+        cache_dir=None,
         update_cache=False,
-        domain_freq_thresh=0.0015, 
+        domain_freq_thresh=0.0015,
         random_state=12345,
         cats_drop_pre_canon_fit=['uncategorized', 'uncategorised'],
         cats_drop_post_canon_fit=['blog', 'other', 'general', 'tips'],
@@ -227,7 +231,7 @@ class BlogCategoryModel():
         self.random_state = random_state
         self.cats_drop_pre_canon_fit = cats_drop_pre_canon_fit
         self.cats_drop_post_canon_fit = cats_drop_post_canon_fit
-        
+
     def fit(self, X, y, groups):
         """"""
         print('before drop pre')
@@ -236,33 +240,33 @@ class BlogCategoryModel():
         # have to keep X as a list
         X = [x for i, x in enumerate(X) if keep_mask[i]]
         y = y[keep_mask].copy()
-        
+
         print('before transform')
         # transform X
         self.tpt = TextPriorTransformer(
-            cache_dir=self.cache_dir, 
-            update_cache=self.update_cache, 
+            cache_dir=self.cache_dir,
+            update_cache=self.update_cache,
             domain_freq_thresh=self.domain_freq_thresh,
             cats_drop_post_canon_fit=self.cats_drop_post_canon_fit
         )
         self.tpt.fit(X, y, groups)
         X = self.tpt.transform(X)
-        
+
         # give access to canonical map and it's reverse
         self.canonical_map_ = self.tpt.canonical_map_.copy()
         self.reverse_canonical_map_ = self.tpt.reverse_canonical_map_.copy()
         print('after transform')
-        
+
         # transform y with canonical map
         y = self.canonicalize(y)
-        
+
         print('before drop post')
         # drop unusable categories
         keep_mask = ~y.isin(self.cats_drop_post_canon_fit)
         keep_mask_numpy = keep_mask.astype(int).values.nonzero()[0]
         X = X[keep_mask_numpy,:].copy()
         y = y[keep_mask].copy()
-        
+
         # encode labels
         self.le = LabelEncoder()
         self.le.fit(y)
@@ -272,12 +276,12 @@ class BlogCategoryModel():
         # fit model
         self.model = LogisticRegression(
             C=1, # default but also best from random search
-            solver='lbfgs', random_state=12345, penalty='l2', 
+            solver='lbfgs', random_state=12345, penalty='l2',
             fit_intercept=True, max_iter=3000, multi_class='ovr'
         )
         self.model.fit(X, y)
         print('after model fit')
-        
+
     def predict(self, X):
         # transform X
         X = self.tpt.transform(X)
@@ -294,20 +298,20 @@ class BlogCategoryModel():
         for pred, equiv, conf in zip(predicted_category, equivalent_categories, confidence):
             payload.append(
                 {
-                    'predicted_category': pred, 
-                    'equivalent_categories': equiv, 
+                    'predicted_category': pred,
+                    'equivalent_categories': equiv,
                     'confidence': conf
                 }
             )
-        
+
         return payload
-    
+
     def canonicalize(self, y):
         y = y.map(self.canonical_map_)
         y = y.fillna('other')
         return y
 
-    
+
 def simple_clean(text):
     text = str(text)
     text = text.lower()
@@ -319,6 +323,18 @@ def simple_clean(text):
     text = re.sub('[\W_]+', ' ', text)
     # trim whitespace
     text = re.sub('\s+', ' ', text)
+    text = text.strip()
+    return text
+
+
+def sluglike(text):
+    # lowercase
+    text = text.lower()
+    # keep alphanumeric only
+    text = re.sub('[\W_]+', ' ', text)
+    # remove duplicate spaces
+    text = re.sub(' +', ' ', text)
+    # strip leading and trailing whitespace
     text = text.strip()
     return text
 
@@ -352,7 +368,7 @@ def get_word_vects(vocab, vect_fpath, file_type='txt'):
 
 def get_all_word_vects(category):
     cat_vocab = set(category.drop_duplicates().apply(lambda x: str(x).split()).sum())
-    
+
     all_word_vects = {}
     for wv_name, wv_fpath in WORD_VECT_FPATHS.items():
         if wv_name == 'word2vec':
@@ -360,7 +376,7 @@ def get_all_word_vects(category):
         else:
             file_type='txt'
         all_word_vects[wv_name] = get_word_vects(cat_vocab, wv_fpath, file_type=file_type)
-        
+
     return all_word_vects
 
 
@@ -372,13 +388,13 @@ def get_tfidf_vects(text, category):
     vect.fit(text)
     tfidf_mat_articles = vect.transform(text)
 
-    # collect dict keyed on category containing tfidf vectors 
+    # collect dict keyed on category containing tfidf vectors
     # averaged across documents within category
     tfidf_vects = {}
     for cat in cats:
         mask = (category == cat).astype(int).values.nonzero()[0]
         tfidf_vects[cat] = tfidf_mat_articles[mask].mean(axis=0)
-    
+
     return tfidf_vects
 
 
@@ -411,7 +427,7 @@ def get_scores_df(i, category_domain_counts, min_domain_count, all_word_vects, t
         scores[wv_name] = np.array([get_word_similarity(cat_i, cat_j, word_vects) for cat_j in cat_js])
     scores_df = pd.DataFrame(scores)
     scores_df['category_i'] = cat_i
-    scores_df['num_domains_i'] = num_domains_i        
+    scores_df['num_domains_i'] = num_domains_i
     return scores_df
 
 
@@ -420,16 +436,16 @@ def get_similarity_scores(
     domain_freq_thresh=0.0005, cache_dir=None, update_cache=False
 ):
     # get similarity scores for category pairs
-    
+
     # load from cache if available
     if cache_dir is not None:
         cache_fpath = os.path.join(cache_dir, 'category_similarity.pkl')
         if os.path.exists(cache_fpath) and not update_cache:
             return pd.read_pickle(cache_fpath)
-        
+
     # get all_word_vects
     all_word_vects = get_all_word_vects(category)
-    
+
     # get tfidf_vects
     tfidf_vects = get_tfidf_vects(text, category)
 
@@ -442,12 +458,12 @@ def get_similarity_scores(
     for i in range(1, category_domain_counts.shape[0]):
         scores_df_list.append(get_scores_df(i, category_domain_counts, min_domain_count, all_word_vects, tfidf_vects))
     scores_df = pd.concat(scores_df_list)
-    
+
     # cache
     if cache_dir is not None:
         os.makedirs(cache_dir, exist_ok=True)
         scores_df.to_pickle(cache_fpath)
-    
+
     return scores_df
 
 
@@ -460,16 +476,16 @@ def zscore(x):
 
 
 def get_link_scores(scores_df, domain_freq_thresh=0.0005):
-    # num_domains_correction is a value from 0 to 1, 
+    # num_domains_correction is a value from 0 to 1,
     # where 0 is domain_freq_thresh_log and 1 is maximum of num_domains,
     # and the scale is sqrt of log
     domain_freq_thresh_log = np.log(domain_freq_thresh)
     num_domains_log_clip = (np.maximum(
-        domain_freq_thresh_log, 
+        domain_freq_thresh_log,
         np.log(scores_df['num_domains_i'] / scores_df['category_i'].nunique())
-    ) - domain_freq_thresh_log) 
+    ) - domain_freq_thresh_log)
     num_domains_correction = np.sqrt(num_domains_log_clip / num_domains_log_clip.max())
-    
+
     # fuzzy features
     fuzzy_ratio_z = np.maximum(scores_df['fuzzy_ratio'] - 0.8, 0) / scores_df['fuzzy_ratio'].std()
     fuzzy_partial_ratio_z = np.maximum(scores_df['fuzzy_partial_ratio'] - 0.9, 0) / scores_df['fuzzy_partial_ratio'].std()
@@ -478,7 +494,7 @@ def get_link_scores(scores_df, domain_freq_thresh=0.0005):
 
     # tfidf feature, scaled down as num_domains decreases
     tfidf_z = (scores_df['tfidf'] - 0.6) / scores_df['tfidf'].std() * num_domains_correction
-    
+
     # word vect scores - consider each individually as well as mean and median
     # mean
     word_vect_features = [scores_df[WORD_VECT_COLS].apply(lambda x: zscore(x) - 1, axis=0).mean(axis=1)]
@@ -486,7 +502,7 @@ def get_link_scores(scores_df, domain_freq_thresh=0.0005):
     word_vect_features += [scores_df[WORD_VECT_COLS].apply(lambda x: zscore(x) - 1, axis=0).median(axis=1)]
     for wv_name in WORD_VECT_COLS:
         word_vect_features.append((zscore(scores_df[wv_name]) - 1))
-    
+
     # use num_domains as a feature
     num_domains_feature = (1 - np.power(num_domains_correction, 0.1)) * 5
 
@@ -504,7 +520,7 @@ def get_link_scores(scores_df, domain_freq_thresh=0.0005):
     return sigmoid(presig)
 
 
-def get_canonical_map(scores_df, category_domain_counts, domain_freq_thresh=0.0005):    
+def get_canonical_map(scores_df, category_domain_counts, domain_freq_thresh=0.0005):
     # collapse each category to most similar category that is more popular than self and greater than some similarity threshold
     simi_thresh = 0.7
     score_col = 'link_score'
@@ -527,7 +543,7 @@ def get_canonical_map(scores_df, category_domain_counts, domain_freq_thresh=0.00
         # get closest cat
         closest_cat_row = scores_df_this.head(1)
         closest_cat = closest_cat_row['category_j'].values[0]
-        # if max similarity greater than thresh, map this cat to an 
+        # if max similarity greater than thresh, map this cat to an
         # existing canonical category
         if closest_cat_row[score_col].values[0] > simi_thresh:
             is_can = False
@@ -537,12 +553,12 @@ def get_canonical_map(scores_df, category_domain_counts, domain_freq_thresh=0.00
         elif closest_cat_row['num_domains_i'].values[0] / num_domains < domain_freq_thresh:
             is_can = False
             canonical_map[cat] = 'other'
-        # if max similarity less than thresh and this cat occurs in 
+        # if max similarity less than thresh and this cat occurs in
         # more than one domain, this cat is canonical
         else:
             is_can = True
             canonical_map[cat] = cat
             num_can_cats += 1
         i += 1
-        
+
     return canonical_map
