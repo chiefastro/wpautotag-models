@@ -57,7 +57,7 @@ class TextPriorTransformer():
 
         print('before prior category clean')
         # clean category names in prior
-        prior_clean = {sluglike(cat): v for cat, v in prior}
+        prior_clean = prior.apply(slugify_prior)
         print('before canonicalize prior')
         # get canonical prior plus norm
         prior_canonical = self.canonicalize_prior(prior_clean)
@@ -206,7 +206,7 @@ class TextPriorTransformer():
         prior = df['prior']
 
         # get canonical prior plus norm
-        prior_clean = {sluglike(cat): v for cat, v in prior}
+        prior_clean = prior.apply(slugify_prior)
         prior_canonical = self.canonicalize_prior(prior_clean)
         prior_canonical_norm = self.normalize_prior(prior_canonical)
 
@@ -360,6 +360,9 @@ def sluglike(text):
     text = text.strip()
     return text
 
+
+def slugify_prior(prior):
+    return {sluglike(cat): v for cat, v in prior}
 
 def get_word_vects(vocab, vect_fpath, file_type='txt'):
     word_vects = {}
