@@ -15,7 +15,9 @@ from sklearn.preprocessing import LabelEncoder, MaxAbsScaler
 
 WORD_VECT_DIR = os.path.join('D:', 'data_science', 'common')
 WORD_VECT_FPATHS = {
-    'word2vec': os.path.join(WORD_VECT_DIR, 'GoogleNews-vectors-negative300.bin'),
+    'word2vec': os.path.join(
+        WORD_VECT_DIR, 'GoogleNews-vectors-negative300.bin'
+    ),
     'common_crawl': os.path.join(WORD_VECT_DIR, 'crawl-300d-2M.vec'),
     'glove': os.path.join(WORD_VECT_DIR, 'glove.840B.300d.txt'),
     'paragram': os.path.join(WORD_VECT_DIR, 'paragram_300_sl999.txt'),
@@ -67,10 +69,15 @@ class TextPriorTransformer():
         text_clean = text.apply(simple_clean)
         print('before count tokens')
         # count tokens
-        num_tokens = text_clean.apply(lambda x: len(x.split())).values.reshape(-1, 1)
+        num_tokens = text_clean.apply(
+            lambda x: len(x.split())
+        ).values.reshape(-1, 1)
         print('before tfidf')
         # tfidf
-        self.tfidf_vectorizer = TfidfVectorizer(stop_words='english', max_features=10000, use_idf=True, binary=False)
+        self.tfidf_vectorizer = TfidfVectorizer(
+            stop_words='english', max_features=10000,
+            use_idf=True, binary=False
+        )
         self.tfidf_vectorizer.fit(text_clean)
         tfidf_vect = self.tfidf_vectorizer.transform(text_clean)
         print('before stack')
@@ -96,7 +103,8 @@ class TextPriorTransformer():
         # get category domain counts
         groups_df = pd.DataFrame({'category': category, 'domain': groups})
         category_domain_counts = pd.Series(
-            groups_df.groupby('domain')['category'].apply(set).apply(list).sum()
+            groups_df.groupby('domain')['category']\
+            .apply(set).apply(list).sum()
         ).value_counts()
 
         # get similarity scores for category pairs
@@ -119,7 +127,9 @@ class TextPriorTransformer():
         )
 
         # set consistent order of categories for prior vectors
-        self.category_order = np.unique(list(self.canonical_map_.values())).tolist()
+        self.category_order = np.unique(
+            list(self.canonical_map_.values())
+        ).tolist()
 
         # set reverse canonical map for fast lookups of equivalent_categories
         self.set_reverse_canonical_map(category_domain_counts)
@@ -160,16 +170,22 @@ class TextPriorTransformer():
             # aggregate prior counts to canonical category
             this_canonical_prior = defaultdict(int)
             for cat, count in this_prior.items():
-                canon_cat = self.canonical_map_[cat] if cat in self.canonical_map_ else 'other'
+                canon_cat = self.canonical_map_[cat] if (
+                    cat in self.canonical_map_) else 'other'
                 this_canonical_prior[canon_cat] += count
             # consistently order and drop unusable cats
             for cat, count in this_canonical_prior.items():
                 if cat not in self.cats_drop_post_canon_fit:
                     canonical_prior_xcoords.append(i)
-                    canonical_prior_ycoords.append(self.category_order.index(cat))
+                    canonical_prior_ycoords.append(
+                        self.category_order.index(cat)
+                    )
                     canonical_prior_values.append(count)
         # sparse csr from coords
-        val_coords_tup = (canonical_prior_values, (canonical_prior_xcoords, canonical_prior_ycoords))
+        val_coords_tup = (
+            canonical_prior_values,
+            (canonical_prior_xcoords, canonical_prior_ycoords)
+        )
         canonical_prior = scipy.sparse.csr_matrix(
             val_coords_tup,
             shape=(len(prior), len(self.category_order))
@@ -197,7 +213,9 @@ class TextPriorTransformer():
         # clean text
         text_clean = text.apply(simple_clean)
         # count tokens
-        num_tokens = text_clean.apply(lambda x: len(x.split())).values.reshape(-1, 1)
+        num_tokens = text_clean.apply(
+            lambda x: len(x.split())
+        ).values.reshape(-1, 1)
         # tfidf
         tfidf_vect = self.tfidf_vectorizer.transform(text_clean)
         # stack
@@ -292,14 +310,18 @@ class BlogCategoryModel():
         # decode y prediction
         predicted_category = self.le.inverse_transform(y_pred)
         # look up equivalent_categories from canonical_map
-        equivalent_categories = [self.reverse_canonical_map_[cat] for cat in predicted_category]
+        equivalent_categories = [
+            self.reverse_canonical_map_[cat] for cat in predicted_category
+        ]
         # format for return
         payload = []
-        for pred, equiv, conf in zip(predicted_category, equivalent_categories, confidence):
+        for pred, equiv, conf in zip(
+            predicted_category, equivalent_categories, confidence
+        ):
             payload.append(
                 {
                     'predicted_category': pred,
-                    'equivalent_categories': equiv,
+                    # 'equivalent_categories': equiv,
                     'confidence': conf
                 }
             )
@@ -367,7 +389,9 @@ def get_word_vects(vocab, vect_fpath, file_type='txt'):
 
 
 def get_all_word_vects(category):
-    cat_vocab = set(category.drop_duplicates().apply(lambda x: str(x).split()).sum())
+    cat_vocab = set(category.drop_duplicates().apply(
+        lambda x: str(x).split()
+    ).sum())
 
     all_word_vects = {}
     for wv_name, wv_fpath in WORD_VECT_FPATHS.items():
@@ -375,7 +399,9 @@ def get_all_word_vects(category):
             file_type='word2vec'
         else:
             file_type='txt'
-        all_word_vects[wv_name] = get_word_vects(cat_vocab, wv_fpath, file_type=file_type)
+        all_word_vects[wv_name] = get_word_vects(
+            cat_vocab, wv_fpath, file_type=file_type
+        )
 
     return all_word_vects
 
@@ -384,7 +410,9 @@ def get_tfidf_vects(text, category):
     cats = category.drop_duplicates().tolist()
 
     # vectorize terms
-    vect = TfidfVectorizer(stop_words='english', max_features=10000, use_idf=True, binary=False)
+    vect = TfidfVectorizer(
+        stop_words='english', max_features=10000, use_idf=True, binary=False
+    )
     vect.fit(text)
     tfidf_mat_articles = vect.transform(text)
 
@@ -403,28 +431,50 @@ def get_word_vect(string, word_vects):
 
 
 def get_word_similarity(string1, string2, word_vects):
-    return 1 - scipy.spatial.distance.cosine(get_word_vect(string1, word_vects), get_word_vect(string2, word_vects))
+    return 1 - scipy.spatial.distance.cosine(
+        get_word_vect(string1, word_vects), get_word_vect(string2, word_vects)
+    )
 
 
 def get_tfidf_similarity(string1, string2, tfidf_vects):
-    return 1 - scipy.spatial.distance.cosine(tfidf_vects[string1], tfidf_vects[string2])
+    return 1 - scipy.spatial.distance.cosine(
+        tfidf_vects[string1], tfidf_vects[string2]
+    )
 
 
-def get_scores_df(i, category_domain_counts, min_domain_count, all_word_vects, tfidf_vects):
+def get_scores_df(
+    i, category_domain_counts, min_domain_count, all_word_vects, tfidf_vects
+):
     cat_i = category_domain_counts.index[i]
     num_domains_i = category_domain_counts.iloc[i]
     # only consider cat_js with > 1 domains
-    cat_js = category_domain_counts[category_domain_counts >= min_domain_count].index[:i]
-    num_domains_js = category_domain_counts[category_domain_counts >= min_domain_count].iloc[:i].values
+    cat_js = category_domain_counts[
+        category_domain_counts >= min_domain_count
+    ].index[:i]
+    num_domains_js = category_domain_counts[
+        category_domain_counts >= min_domain_count
+    ].iloc[:i].values
     # compute similarity scores to every pair of categories
     scores = {'category_j': cat_js, 'num_domains_j': num_domains_js}
-    scores['fuzzy_ratio'] = np.array([fuzz.ratio(cat_i, cat_j) / 100. for cat_j in cat_js])
-    scores['fuzzy_partial_ratio'] = np.array([fuzz.partial_ratio(cat_i, cat_j) / 100. for cat_j in cat_js])
-    scores['fuzzy_token_sort'] = np.array([fuzz.token_sort_ratio(cat_i, cat_j) / 100. for cat_j in cat_js])
-    scores['fuzzy_token_set'] = np.array([fuzz.token_set_ratio(cat_i, cat_j) / 100. for cat_j in cat_js])
-    scores['tfidf'] = np.array([get_tfidf_similarity(cat_i, cat_j, tfidf_vects) for cat_j in cat_js])
+    scores['fuzzy_ratio'] = np.array(
+        [fuzz.ratio(cat_i, cat_j) / 100. for cat_j in cat_js]
+    )
+    scores['fuzzy_partial_ratio'] = np.array(
+        [fuzz.partial_ratio(cat_i, cat_j) / 100. for cat_j in cat_js]
+    )
+    scores['fuzzy_token_sort'] = np.array(
+        [fuzz.token_sort_ratio(cat_i, cat_j) / 100. for cat_j in cat_js]
+    )
+    scores['fuzzy_token_set'] = np.array(
+        [fuzz.token_set_ratio(cat_i, cat_j) / 100. for cat_j in cat_js]
+    )
+    scores['tfidf'] = np.array(
+        [get_tfidf_similarity(cat_i, cat_j, tfidf_vects) for cat_j in cat_js]
+    )
     for wv_name, word_vects in all_word_vects.items():
-        scores[wv_name] = np.array([get_word_similarity(cat_i, cat_j, word_vects) for cat_j in cat_js])
+        scores[wv_name] = np.array(
+            [get_word_similarity(cat_i, cat_j, word_vects) for cat_j in cat_js]
+        )
     scores_df = pd.DataFrame(scores)
     scores_df['category_i'] = cat_i
     scores_df['num_domains_i'] = num_domains_i
@@ -432,8 +482,8 @@ def get_scores_df(i, category_domain_counts, min_domain_count, all_word_vects, t
 
 
 def get_similarity_scores(
-    text, category, category_domain_counts,
-    domain_freq_thresh=0.0005, cache_dir=None, update_cache=False
+    text, category, category_domain_counts, domain_freq_thresh=0.0005,
+    cache_dir=None, update_cache=False
 ):
     # get similarity scores for category pairs
 
@@ -456,7 +506,10 @@ def get_similarity_scores(
     # calculate scores
     scores_df_list = []
     for i in range(1, category_domain_counts.shape[0]):
-        scores_df_list.append(get_scores_df(i, category_domain_counts, min_domain_count, all_word_vects, tfidf_vects))
+        scores_df_list.append(get_scores_df(
+            i, category_domain_counts, min_domain_count,
+            all_word_vects, tfidf_vects
+        ))
     scores_df = pd.concat(scores_df_list)
 
     # cache
@@ -484,22 +537,37 @@ def get_link_scores(scores_df, domain_freq_thresh=0.0005):
         domain_freq_thresh_log,
         np.log(scores_df['num_domains_i'] / scores_df['category_i'].nunique())
     ) - domain_freq_thresh_log)
-    num_domains_correction = np.sqrt(num_domains_log_clip / num_domains_log_clip.max())
+    num_domains_correction = np.sqrt(
+        num_domains_log_clip / num_domains_log_clip.max()
+    )
 
     # fuzzy features
-    fuzzy_ratio_z = np.maximum(scores_df['fuzzy_ratio'] - 0.8, 0) / scores_df['fuzzy_ratio'].std()
-    fuzzy_partial_ratio_z = np.maximum(scores_df['fuzzy_partial_ratio'] - 0.9, 0) / scores_df['fuzzy_partial_ratio'].std()
-    fuzzy_token_set_z = np.maximum(scores_df['fuzzy_token_set'] - 0.8, 0) / scores_df['fuzzy_token_set'].std()
-    fuzzy_token_sort_z = np.maximum(scores_df['fuzzy_token_sort'] - 0.8, 0) / scores_df['fuzzy_token_sort'].std()
+    fuzzy_ratio_z = np.maximum(
+        scores_df['fuzzy_ratio'] - 0.8, 0
+    ) / scores_df['fuzzy_ratio'].std()
+    fuzzy_partial_ratio_z = np.maximum(
+        scores_df['fuzzy_partial_ratio'] - 0.9, 0
+    ) / scores_df['fuzzy_partial_ratio'].std()
+    fuzzy_token_set_z = np.maximum(
+        scores_df['fuzzy_token_set'] - 0.8, 0
+    ) / scores_df['fuzzy_token_set'].std()
+    fuzzy_token_sort_z = np.maximum(
+        scores_df['fuzzy_token_sort'] - 0.8, 0
+    ) / scores_df['fuzzy_token_sort'].std()
 
     # tfidf feature, scaled down as num_domains decreases
-    tfidf_z = (scores_df['tfidf'] - 0.6) / scores_df['tfidf'].std() * num_domains_correction
+    tfidf_z = (scores_df['tfidf'] - 0.6) / scores_df['tfidf'].std() * \
+        num_domains_correction
 
     # word vect scores - consider each individually as well as mean and median
     # mean
-    word_vect_features = [scores_df[WORD_VECT_COLS].apply(lambda x: zscore(x) - 1, axis=0).mean(axis=1)]
+    word_vect_features = [scores_df[WORD_VECT_COLS].apply(
+        lambda x: zscore(x) - 1, axis=0
+    ).mean(axis=1)]
     # median
-    word_vect_features += [scores_df[WORD_VECT_COLS].apply(lambda x: zscore(x) - 1, axis=0).median(axis=1)]
+    word_vect_features += [scores_df[WORD_VECT_COLS].apply(
+        lambda x: zscore(x) - 1, axis=0
+    ).median(axis=1)]
     for wv_name in WORD_VECT_COLS:
         word_vect_features.append((zscore(scores_df[wv_name]) - 1))
 
@@ -520,8 +588,11 @@ def get_link_scores(scores_df, domain_freq_thresh=0.0005):
     return sigmoid(presig)
 
 
-def get_canonical_map(scores_df, category_domain_counts, domain_freq_thresh=0.0005):
-    # collapse each category to most similar category that is more popular than self and greater than some similarity threshold
+def get_canonical_map(
+    scores_df, category_domain_counts, domain_freq_thresh=0.0005
+):
+    # collapse each category to most similar category that is more popular
+    # than self and greater than some similarity threshold
     simi_thresh = 0.7
     score_col = 'link_score'
     cat_groups = scores_df.groupby('category_i')
@@ -530,7 +601,9 @@ def get_canonical_map(scores_df, category_domain_counts, domain_freq_thresh=0.00
     i = 0
     score_df_list = []
     # seed with top category
-    canonical_map = {category_domain_counts.index[0]: category_domain_counts.index[0]}
+    canonical_map = {
+        category_domain_counts.index[0]: category_domain_counts.index[0]
+    }
     num_can_cats = 1
     is_can = False
     for cat in cat_is:
@@ -550,7 +623,9 @@ def get_canonical_map(scores_df, category_domain_counts, domain_freq_thresh=0.00
             # map this cat to closest_cat's canonical cat
             canonical_map[cat] = canonical_map[closest_cat]
         # if cat only occurs in one domain, mark as 'other'
-        elif closest_cat_row['num_domains_i'].values[0] / num_domains < domain_freq_thresh:
+        elif (
+            closest_cat_row['num_domains_i'].values[0] / num_domains
+        ) < domain_freq_thresh:
             is_can = False
             canonical_map[cat] = 'other'
         # if max similarity less than thresh and this cat occurs in
