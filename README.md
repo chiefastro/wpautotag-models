@@ -1,2 +1,2 @@
-# wp-auto-taxonomy-models
-Modeling code for WP Auto Taxonomy
+# wpautotag-models
+Modeling code for WP Auto Tag
