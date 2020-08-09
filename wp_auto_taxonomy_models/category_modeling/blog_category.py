@@ -362,7 +362,7 @@ def sluglike(text):
 
 
 def slugify_prior(prior):
-    return {sluglike(cat): v for cat, v in prior}
+    return {sluglike(cat): v for cat, v in prior.items()}
 
 def get_word_vects(vocab, vect_fpath, file_type='txt'):
     word_vects = {}
