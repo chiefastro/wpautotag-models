@@ -12,6 +12,7 @@ import scipy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import LabelEncoder, MaxAbsScaler
+from wp_auto_taxonomy_models.nlp.clean import simple_clean, sluglike
 
 WORD_VECT_DIR = os.path.join('D:', 'data_science', 'common')
 WORD_VECT_FPATHS = {
@@ -333,34 +334,6 @@ class BlogCategoryModel():
         y = y.fillna('other')
         return y
 
-
-def simple_clean(text):
-    text = str(text)
-    text = text.lower()
-    # remove html tags
-    text = re.sub('<.*?>', '', text)
-    # remove urls within text
-    text = re.sub('http.+[\s\\n]', '', text)
-    # keep alphabetic only
-    text = re.sub('[\W_]+', ' ', text)
-    # trim whitespace
-    text = re.sub('\s+', ' ', text)
-    text = text.strip()
-    return text
-
-
-def sluglike(text):
-    # lowercase
-    text = text.lower()
-    # keep alphanumeric only
-    text = re.sub('[\W_]+', ' ', text)
-    # remove duplicate spaces
-    text = re.sub(' +', ' ', text)
-    # strip leading and trailing whitespace
-    text = text.strip()
-    return text
-
-
 def slugify_prior(prior):
     return {sluglike(cat): v for cat, v in prior.items()}
 
@@ -368,6 +341,7 @@ def get_word_vects(vocab, vect_fpath, file_type='txt'):
     word_vects = {}
     i = 0
     if file_type == 'word2vec':
+        # TODO: remove gensim dependency
         word2vec = KeyedVectors.load_word2vec_format(vect_fpath, binary=True)
         for word in vocab:
             if word in word2vec:
