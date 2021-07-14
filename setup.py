@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="wp-auto-taxonomy-models",
+    name="wp_auto_taxonomy_models",
     version="0.0.3",
     author="Jared Rand",
     author_email="chiefastro@gmail.com",
