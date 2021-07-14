@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://github.com/chiefastro/wp-auto-taxonomy-models",
     packages=setuptools.find_packages(),
     install_requires=[
-        'pandas', 'numpy', 'fuzzywuzzy', 'scipy', 'scikit-learn'
+        'pandas', 'numpy', 'fuzzywuzzy', 'scipy', 'scikit-learn', 'yake', 'bs4'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
