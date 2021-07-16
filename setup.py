@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="wp_auto_taxonomy_models",
-    version="0.0.2",
+    version="0.0.4",
     author="Jared Rand",
     author_email="chiefastro@gmail.com",
     description="Modeling code for WP Auto Taxonomy",
