@@ -1,8 +1,10 @@
 import os
 import pickle
 
-from bs4 import BeautifulSoup
-import yake
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import MultiLabelBinarizer
 
 
 def model_fn(model_dir):
