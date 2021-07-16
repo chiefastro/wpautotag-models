@@ -14,7 +14,7 @@ class BlogMultiLabelTopicModel():
     trained on the most common tags across domains"""
     def __init__(self):
         # Vectorize text
-        self.tv = TfidfVectorizer(ngram_range=(1,2), max_features=50000)
+        self.tv = TfidfVectorizer(ngram_range=(1,2), max_features=100000)
         # Convert list of tags per article to multi label target
         self.mlb = MultiLabelBinarizer(sparse_output=False)
         # Fit multi label classifier with logit for each label
@@ -35,7 +35,9 @@ class BlogMultiLabelTopicModel():
         # Vectorize text
         X = self.tv.transform(X)
         # Get predicted probability for each article for each label
-        y_pred = self.multi_clf.predict_proba(X)
+        y_pred = np.array(self.multi_clf.predict_proba(X))
+        # Convert to df
+        y_pred_df = pd.DataFrame(y_pred[:,:,1].T, columns=self.mlb.classes_)
         # Normalize predicted probabilities by prevalence of each label
-        y_pred_norm = y_pred / prevalences
+        y_pred_norm = y_pred_df / self.prevalences
         return y_pred_norm
