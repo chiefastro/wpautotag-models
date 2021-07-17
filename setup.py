@@ -14,7 +14,8 @@ setuptools.setup(
     url="https://github.com/chiefastro/wpautotag-models",
     packages=setuptools.find_packages(),
     install_requires=[
-        'pandas', 'numpy', 'fuzzywuzzy', 'scipy', 'scikit-learn', 'yake', 'bs4'
+        'pandas', 'numpy', 'fuzzywuzzy', 'scipy', 'scikit-learn', 'yake', 'bs4',
+        'lxml'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
