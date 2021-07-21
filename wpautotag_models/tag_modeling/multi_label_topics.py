@@ -17,7 +17,7 @@ def model_fn(model_dir):
 class BlogMultiLabelTopicModel():
     """Recommend topics for blog articles using a supervised multi label model
     trained on the most common tags across domains"""
-    def __init__(self):
+    def __init__(self, topn=20):
         # Vectorize text
         self.tv = TfidfVectorizer(ngram_range=(1,2), max_features=100000)
         # Convert list of tags per article to multi label target
@@ -25,6 +25,7 @@ class BlogMultiLabelTopicModel():
         # Fit multi label classifier with logit for each label
         self.clf = LogisticRegression()
         self.multi_clf = MultiOutputClassifier(self.clf, n_jobs=-1)
+        self.topn = topn
 
     def fit(self, X, y):
         # Vectorize text
@@ -45,4 +46,11 @@ class BlogMultiLabelTopicModel():
         y_pred_df = pd.DataFrame(y_pred[:,:,1].T, columns=self.mlb.classes_)
         # Normalize predicted probabilities by prevalence of each label
         y_pred_norm = y_pred_df / self.prevalences
-        return y_pred_norm
+        # Collect top n topics per doc
+        return y_pred_norm.apply(self.get_topn, axis=1).tolist()
+
+    def get_topn(self, row):
+        """Sort tags by score, filter to self.topn, then collect into list of
+        tuples of tag, score"""
+        tags = row.T.sort_values(ascending=False).head(self.topn)
+        return [(tag, score) for tag, score in zip(tags.index, tags.values)]
