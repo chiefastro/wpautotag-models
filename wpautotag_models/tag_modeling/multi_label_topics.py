@@ -3,11 +3,12 @@ import pickle
 
 import numpy as np
 import pandas as pd
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import MultiLabelBinarizer
+
+from wpautotag_models.nlp.clean import simple_clean
 
 
 def model_fn(model_dir):
@@ -28,6 +29,8 @@ class BlogMultiLabelTopicModel():
         self.topn = topn
 
     def fit(self, X, y):
+        # Clean text
+        X = pd.Series(X).apply(simple_clean)
         # Vectorize text
         X = self.tv.fit_transform(X)
         # Convert list of tags per article to multi label target
@@ -38,6 +41,8 @@ class BlogMultiLabelTopicModel():
         self.prevalences = y.sum(axis=0) / y.shape[0]
 
     def predict(self, X):
+        # Clean text
+        X = pd.Series(X).apply(simple_clean)
         # Vectorize text
         X = self.tv.transform(X)
         # Get predicted probability for each article for each label
