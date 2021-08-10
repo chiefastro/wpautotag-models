@@ -4,17 +4,18 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="wp-auto-taxonomy-models",
-    version="0.0.1",
+    name="wpautotag-models",
+    version="0.0.4",
     author="Jared Rand",
     author_email="chiefastro@gmail.com",
     description="Modeling code for WP Auto Taxonomy",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/chiefastro/wp-auto-taxonomy-models",
+    url="https://github.com/chiefastro/wpautotag-models",
     packages=setuptools.find_packages(),
     install_requires=[
-        'pandas', 'numpy', 'fuzzywuzzy', 'gensim', 'scipy', 'scikit-learn'
+        'pandas', 'numpy', 'fuzzywuzzy', 'scipy', 'scikit-learn', 'yake', 'bs4',
+        'lxml'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
